@@ -11,6 +11,22 @@ import re
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+# Enable Oracle Thick mode if requested via environment variable.
+# Thick mode is required for features such as Native Network Encryption (NNE),
+# checksumming, Kerberos authentication, and connections to Oracle DB versions
+# prior to 12.1. When enabled, Oracle Instant Client libraries must be available
+# in the system library search path (LD_LIBRARY_PATH). A Lambda Layer containing
+# Oracle Instant Client Basic Lite and libaio.so.1 is the recommended approach.
+#
+# Supported environment variables for thick mode:
+#   - ORACLE_THICK_MODE: Set to 'true' to enable thick mode (default: false)
+#   - ORACLE_CLIENT_CONFIG_DIR: Optional path to Oracle Net config files
+#     (tnsnames.ora, sqlnet.ora). Defaults to None (uses standard search paths).
+if os.environ.get('ORACLE_THICK_MODE', 'false').lower() in ['true', '1', 'y', 'yes']:
+    config_dir = os.environ.get('ORACLE_CLIENT_CONFIG_DIR')
+    oracledb.init_oracle_client(config_dir=config_dir)
+    logger.info("Oracle Thick mode enabled (config_dir=%s)" % config_dir)
+
 
 def lambda_handler(event, context):
     """Secrets Manager RDS Oracle Handler
@@ -26,7 +42,8 @@ def lambda_handler(event, context):
         'username': <required: username>,
         'password': <required: password>,
         'dbname': <required: database name>,
-        'port': <optional: if not specified, default port 1521 will be used>
+        'port': <optional: if not specified, default port 1521 will be used>,
+        'ssl': <optional: if not specified, SSL with fallback is used>
     }
 
     Args:
@@ -197,7 +214,7 @@ def set_secret(service_client, arn, token):
     pending_password = pending_dict['password'].replace("\"", "")
 
     # Now set the password to the pending password
-    sql = "ALTER USER %s IDENTIFIED BY \"%s\"" % (escaped_username, pending_dict['password'])
+    sql = "ALTER USER %s IDENTIFIED BY \"%s\"" % (escaped_username, pending_password)
     cur.execute(sql)
     conn.commit()
     logger.info("setSecret: Successfully set password for user %s in Oracle DB for secret arn %s." % (pending_dict['username'], arn))
