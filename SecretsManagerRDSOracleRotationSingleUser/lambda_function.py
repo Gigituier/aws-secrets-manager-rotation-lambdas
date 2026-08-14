@@ -42,8 +42,7 @@ def lambda_handler(event, context):
         'username': <required: username>,
         'password': <required: password>,
         'dbname': <required: database name>,
-        'port': <optional: if not specified, default port 1521 will be used>,
-        'ssl': <optional: if not specified, SSL with fallback is used>
+        'port': <optional: if not specified, default port 1521 will be used>
     }
 
     Args:
@@ -214,7 +213,7 @@ def set_secret(service_client, arn, token):
     pending_password = pending_dict['password'].replace("\"", "")
 
     # Now set the password to the pending password
-    sql = "ALTER USER %s IDENTIFIED BY \"%s\"" % (escaped_username, pending_password)
+    sql = "ALTER USER %s IDENTIFIED BY \"%s\"" % (escaped_username, pending_dict['password'])
     cur.execute(sql)
     conn.commit()
     logger.info("setSecret: Successfully set password for user %s in Oracle DB for secret arn %s." % (pending_dict['username'], arn))
